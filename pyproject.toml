@@ -1,0 +1,15 @@
+[tool.poetry]
+name = "sequoia-parser"
+version = "0.1.0"
+description = ""
+authors = ["Nikola <nikola@kumulintelligence.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.12"
+beautifulsoup4 = "^4.12.3"
+requests = "^2.32.3"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
