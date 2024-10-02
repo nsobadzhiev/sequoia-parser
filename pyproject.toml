@@ -9,6 +9,8 @@ readme = "README.md"
 python = "^3.12"
 beautifulsoup4 = "^4.12.3"
 requests = "^2.32.3"
+google-api-python-client = "^2.147.0"
+google-auth-oauthlib = "^1.2.1"
 
 [build-system]
 requires = ["poetry-core"]

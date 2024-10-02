@@ -59,6 +59,19 @@ def parse_milestones(milestones_html: str) -> str | None:
     return None
 
 
+def parse_categories(company_html: str) -> list[str]:
+    """
+    Parses the categories from a 'More info' section of HTML for a company.
+    The categories are buttons that appear at the bottom of the element.
+    They are 'a' tags and have an attribute 'data-bs-target' = 'categories'
+    :param company_html: HTML for the 'More info' section of a company
+    :return:
+    """
+    milestones_soup = BeautifulSoup(company_html, 'html.parser')
+    elements = milestones_soup.find_all('a', attrs={'data-bs-target': 'categories'})
+    return [element.get_text(strip=True) for element in elements]
+
+
 url = 'https://www.sequoiacap.com/our-companies/?_stage_current=ipo'
 response = requests.get(url)
 
@@ -72,10 +85,12 @@ if response.status_code == 200:
     data = []
     for row in table.find_all('tr'):
         print(f'Processing row {row}')
+        categories = None
         if 'data-target' in row.attrs:
             company_id = row.attrs['data-target'].split('-')[-1]
             more_info = get_company_data(company_id, nonce)
             company_milestones = parse_milestones(more_info)
+            categories = ','.join(parse_categories(more_info))
         else:
             company_milestones = None
         cols = row.find_all(['td', 'th'])  # Get both header and data cells
@@ -89,6 +104,10 @@ if response.status_code == 200:
             cols.append(company_milestones)
             print(f'Processed row {cols}')
         data.append(cols)
+        if categories:
+            cols.append(categories)
+        else:
+            cols.append('Categories')
 
     # Step 5: Write the data to a CSV file
     csv_file_path = 'table_data.csv'  # Specify the desired CSV file name
