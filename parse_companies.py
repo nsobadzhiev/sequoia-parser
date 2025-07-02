@@ -72,15 +72,66 @@ def parse_categories(company_html: str) -> list[str]:
     return [element.get_text(strip=True) for element in elements]
 
 
+def get_additional_companies() -> str:
+    url = 'https://www.sequoiacap.com/our-companies/?_stage_current=ipo#all-panel'
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:132.0) Gecko/20100101 Firefox/132.0',
+        'Accept': '*/*',
+        'Accept-Language': 'en-US,en;q=0.5',
+        'Referer': 'https://www.sequoiacap.com/our-companies/?_stage_current=ipo',
+        'Content-Type': 'application/json',
+        'Origin': 'https://www.sequoiacap.com',
+        'DNT': '1',
+        'Sec-GPC': '1',
+        'Connection': 'keep-alive',
+        'Sec-Fetch-Dest': 'empty',
+        'Sec-Fetch-Mode': 'cors',
+        'Sec-Fetch-Site': 'same-origin',
+        'Priority': 'u=0',
+        'TE': 'trailers',
+    }
+
+    data = {
+        "action": "facetwp_refresh",
+        "data": {
+            "facets": {
+                "categories": [],
+                "partners": [],
+                "stage_current": ["ipo"],
+                "stage_at_investment": [],
+                "load-more": []
+            },
+            "frozen_facets": {},
+            "http_params": {
+                "get": {
+                    "_stage_current": "ipo"
+                },
+                "uri": "our-companies",
+                "url_vars": {
+                    "stage_current": ["ipo"]
+                }
+            },
+            "template": "wp",
+            "extras": {
+                "selections": True,
+                "sort": "default"
+            },
+            "soft_refresh": 1,
+            "is_bfcache": 1,
+            "first_load": 0,
+            "paged": 2
+        }
+    }
+
+    additional_companies_response = requests.post(url, headers=headers, json=data)
+    return additional_companies_response.text
+
+
 url = 'https://www.sequoiacap.com/our-companies/?_stage_current=ipo'
 response = requests.get(url)
 
-# Check if the request was successful
-if response.status_code == 200:
-    soup = BeautifulSoup(response.content, 'html.parser')
-    table = soup.find('table')  # You may need to specify attributes to find the correct table
-    nonce = get_nonce(response.text)
 
+def parse_companies_data(table, nonce: str):
     # Step 4: Extract data from the table
     data = []
     for row in table.find_all('tr'):
@@ -108,6 +159,55 @@ if response.status_code == 200:
             cols.append(categories)
         else:
             cols.append('Categories')
+    return data
+
+
+def parse_additional_companies_data(table, nonce: str):
+    # Step 4: Extract data from the table
+    data = []
+    for row in table.find_all('tr'):
+        print(f'Processing row {row}')
+        categories = None
+        company_id = ''
+        if 'data-target' in row.attrs:
+            company_id = row.attrs['data-target'].split('-')[-1]
+            more_info = get_company_data(company_id, nonce)
+            company_milestones = parse_milestones(more_info)
+            categories = ','.join(parse_categories(more_info))
+            company_tag = row.find_all('th')
+            if len(company_tag) > 0:
+                company = row.find_all('th')[0].next
+                company_desc = row.find_all('th')[0].find_all('td')[0].next
+                # if cols[0] == 'Loading':
+                #     continue
+                cols = [company_id, company, company_desc, 'IPO', '', '']
+                if not company_milestones:
+                    cols.append('Milestones')
+                else:
+                    cols.append(company_milestones)
+                    print(f'Processed row {cols}')
+                if categories:
+                    cols.append(categories)
+                else:
+                    cols.append('Categories')
+                data.append(cols)
+    return data
+
+
+# Check if the request was successful
+if response.status_code == 200:
+    soup = BeautifulSoup(response.content, 'html.parser')
+    nonce = get_nonce(response.text)
+
+    table = soup.find('table')
+    data = parse_companies_data(table, nonce)
+
+    all_companies_response = get_additional_companies()
+    all_soup = BeautifulSoup(all_companies_response, 'html.parser')
+    table = all_soup.find('table')
+
+    data_additional = parse_additional_companies_data(table, nonce)
+    data += data_additional
 
     # Step 5: Write the data to a CSV file
     csv_file_path = 'table_data.csv'  # Specify the desired CSV file name
